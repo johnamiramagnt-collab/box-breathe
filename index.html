@@ -21,6 +21,7 @@
   </div>
   <div class="tools">
     <button class="icon" id="bSound" title="צליל">♪</button>
+    <button class="icon" id="bVoice" title="הדרכה קולית">ק</button>
     <button class="icon" id="bTheme" title="מצב תצוגה">◐</button>
     <button class="icon" id="bSettings" title="הגדרות">⋯</button>
   </div>
@@ -31,12 +32,15 @@
     <svg viewBox="0 0 300 300" aria-hidden="true">
       <path class="glow" id="glow" d=""/>
       <path class="track" id="track" d=""/>
+      <g class="ticks" id="ticks" aria-hidden="true"></g>
       <path class="pen" id="pen" d=""/>
+      <circle class="pen-head" id="penHead" r="5" cx="0" cy="0"/>
     </svg>
     <div class="readout">
       <div class="phase" id="phase">מוכן?</div>
       <div class="secs" id="secs">4</div>
       <div class="cycle" id="cycle"></div>
+      <div class="next-hint" id="nextHint"></div>
       <div class="hint" id="hint">הקש על הריבוע כדי להתחיל</div>
     </div>
   </div>

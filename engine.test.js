@@ -4,8 +4,12 @@ import {
   getBreathingState,
   getPatternDurationSeconds,
   effectiveDuration,
+  getPhaseTickCount,
+  getNextActivePhaseIndex,
   PHASE_KEYS,
+  PHASE_LABELS,
   sessionGoalMode,
+  normalizePhases,
 } from "./engine.js";
 
 test("starts at phase 0 with zero progress and full seconds remaining", () => {
@@ -210,6 +214,88 @@ test("partial session reports completed elapsed time", () => {
   assert.equal(s.sessionFinished, false);
   assert.equal(s.sessionElapsedSeconds, elapsed);
   assert.equal(s.cycle, 9);
+});
+
+test("phase indices and labels across a full 4-4-4-4 cycle", () => {
+  const phases = [4, 4, 4, 4];
+  const checkpoints = [0, 4, 8, 12, 16];
+  const expectedIdx = [0, 1, 2, 3, 0];
+  for (let i = 0; i < checkpoints.length; i++) {
+    const s = getBreathingState({
+      phases,
+      maxCycles: 0,
+      elapsedSeconds: checkpoints[i],
+    });
+    assert.equal(s.phaseIndex, expectedIdx[i]);
+    assert.equal(s.phaseLabel, PHASE_LABELS[expectedIdx[i]]);
+    assert.equal(s.phaseKey, PHASE_KEYS[expectedIdx[i]]);
+  }
+});
+
+test("getPhaseTickCount scales with duration and caps long phases", () => {
+  const p = [4, 4, 4, 4];
+  assert.equal(getPhaseTickCount(p, 0), 4);
+  assert.equal(getPhaseTickCount(p, 1), 4);
+  assert.equal(getPhaseTickCount([1, 20, 1, 1], 1), 20);
+  assert.equal(getPhaseTickCount([1, 30, 1, 1], 1), 24);
+  assert.equal(getPhaseTickCount([0.5, 4, 4, 4], 0), 1);
+  assert.equal(getPhaseTickCount([0, 0, 0, 0], 0), 0);
+});
+
+test("phaseTickIndex tracks progress within a phase", () => {
+  const phases = [4, 4, 4, 4];
+  const start = getBreathingState({ phases, maxCycles: 0, elapsedSeconds: 0 });
+  assert.equal(start.phaseTickCount, 4);
+  assert.equal(start.phaseTickIndex, 0);
+
+  const mid = getBreathingState({ phases, maxCycles: 0, elapsedSeconds: 2.1 });
+  assert.equal(mid.phaseIndex, 0);
+  assert.equal(mid.phaseTickIndex, 2);
+
+  const endHold = getBreathingState({ phases, maxCycles: 0, elapsedSeconds: 7.9 });
+  assert.equal(endHold.phaseIndex, 1);
+  assert.equal(endHold.phaseTickIndex, 3);
+});
+
+test("next phase wraps from holdEnd to inhale and skips zero phases", () => {
+  const full = [4, 4, 4, 4];
+  assert.equal(getNextActivePhaseIndex(full, 0), 1);
+  assert.equal(getNextActivePhaseIndex(full, 3), 0);
+
+  const s = getBreathingState({ phases: full, maxCycles: 0, elapsedSeconds: 12 });
+  assert.equal(s.phaseIndex, 3);
+  assert.equal(s.nextPhaseIndex, 0);
+  assert.equal(s.nextPhaseLabel, PHASE_LABELS[0]);
+
+  const skipEnd = [4, 7, 8, 0];
+  assert.equal(getNextActivePhaseIndex(normalizePhases(skipEnd), 2), 0);
+  const atExhale = getBreathingState({
+    phases: skipEnd,
+    maxCycles: 0,
+    elapsedSeconds: 4 + 7,
+  });
+  assert.equal(atExhale.phaseIndex, 2);
+  assert.equal(atExhale.nextPhaseIndex, 0);
+});
+
+test("zero-length phases are skipped in sequence", () => {
+  const phases = [2, 0, 2, 0];
+  assert.equal(
+    getBreathingState({ phases, maxCycles: 0, elapsedSeconds: 0 }).phaseIndex,
+    0
+  );
+  assert.equal(
+    getBreathingState({ phases, maxCycles: 0, elapsedSeconds: 2 }).phaseIndex,
+    2
+  );
+  assert.equal(
+    getBreathingState({ phases, maxCycles: 0, elapsedSeconds: 4 }).phaseIndex,
+    0
+  );
+  assert.equal(
+    getBreathingState({ phases, maxCycles: 0, elapsedSeconds: 4 }).cycle,
+    2
+  );
 });
 
 test("time goal and cycle goal never both finish the same session", () => {

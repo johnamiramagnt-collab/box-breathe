@@ -1,4 +1,4 @@
-const CACHE = "boxbreath-v2";
+const CACHE = "boxbreath-v3";
 const ASSETS = [
   "./",
   "./index.html",
